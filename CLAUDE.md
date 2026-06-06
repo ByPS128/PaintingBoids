@@ -169,3 +169,12 @@ otestovat: `WRAP=0 node observe.js` (hlásí max přesah mimo plátno, má být 
   jízda „po kolejích" bez bočního pohybu, a ostré rohy, kterými boidi neproletí.
   Když děláš změny, míř
   na organický, plynulý, lehce nepřesný pohyb.
+
+## Další směr (cíl projektu)
+
+- **Cíl:** dotáhnout z hotového prototypu do prezentovatelného „produktu", který
+  jde ukázat ostatním (work na to plánovaný cca červen 2026 a dál).
+- Možné kroky k produktu (nápady do příště): hezčí/uklizenější UI místo textového
+  HUDu (panel s ovládáním, on/off přepínače), úvodní obrazovka / název, mobilní
+  ovládání (touch), volba palet a tvarů, plynulé přechody scén, sdílení/odkaz,
+  případně nasazení (GitHub Pages). Repo zatím nemá git remote.
