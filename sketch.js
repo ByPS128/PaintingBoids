@@ -78,6 +78,19 @@ const CONFIG = {
     step: 15
   },
 
+  // POČET BOIDŮ: výchozí se na desktopu odvozuje z plochy okna (velký
+  // monitor unese a zaslouží víc boidů), na mobilu platí CONFIG.mobile.
+  // Za běhu jde měnit tlačítky "boidi -/+" (krok step) nebo klávesami b/n.
+  // Pozor: flocking je O(n²), horní mez drž rozumnou kvůli výkonu.
+  population: {
+    areaPerBoid: 9000,   // px² plochy okna na jednoho boida (výchozí hustota)
+    defaultMin: 100,     // spodní mez VÝCHOZÍHO počtu (malé okno)
+    defaultMax: 280,     // horní mez VÝCHOZÍHO počtu (4K monitor)
+    min: 40,             // spodní mez při ručním ubírání
+    max: 400,            // horní mez při ručním přidávání (výkon, O(n²))
+    step: 10             // krok tlačítek / kláves
+  },
+
   // MOBIL / MALÁ OBRAZOVKA: na malém displeji se tvary s velkým rozptylem
   // slévají (kopretina, vlna...), proto užší silnice, méně boidů, mírně
   // větší tvary a vlastní (čitelnější) sada obrazců - viz buildShapes.
@@ -144,6 +157,42 @@ function detectDevice() {
 // protože výchozí hodnota pro novou velikost je lepší startovní bod.
 function applyDeviceTuning() {
   CONFIG.road.width = device.small ? CONFIG.mobile.roadWidth : CONFIG.road.widthDesktop;
+}
+
+// ---- Změna počtu boidů za běhu (tlačítka "boidi -/+", klávesy b/n) ----
+
+// Přidá n boidů - každý se vylíhne POBLÍŽ náhodného boida náhodného hejna,
+// takže nepřilétají z prázdna přes celou plochu a hejno je hned vstřebá.
+function addBoids(n) {
+  for (let k = 0; k < n; k++) {
+    const f = flocks[floor(random(flocks.length))];
+    const ref = f.boids.length
+      ? random(f.boids).position
+      : createVector(random(width), random(height));
+    const b = new Boid(ref.x + random(-40, 40), ref.y + random(-40, 40), f.id);
+    b.flockColor = f.color;
+    f.addBoid(b);
+    allBoids.push(b);
+  }
+}
+
+// Odebere n boidů z konce (rovnoměrně to dopadá na všechna hejna,
+// protože se při spawnu prokládají).
+function removeBoids(n) {
+  for (let k = 0; k < n && allBoids.length > 0; k++) {
+    const b = allBoids.pop();
+    const fb = flocks[b.flockId].boids;
+    const i = fb.indexOf(b);
+    if (i >= 0) fb.splice(i, 1);
+  }
+}
+
+function changeBoidCount(delta) {
+  const P = CONFIG.population;
+  const target = constrain(allBoids.length + delta, P.min, P.max);
+  const diff = target - allBoids.length;
+  if (diff > 0) addBoids(diff);
+  else if (diff < 0) removeBoids(-diff);
 }
 
 // =============================================================
@@ -958,9 +1007,13 @@ function initSimulation() {
   flocks = [];
   allBoids = [];
 
-  // na malé obrazovce méně hejn i boidů (výkon + čitelnost tvarů)
+  // Počet boidů: na malé obrazovce pevně z CONFIG.mobile (výkon + čitelnost),
+  // na desktopu podle plochy okna - velký monitor dostane víc boidů.
+  const P = CONFIG.population;
   const numFlocks = device.small ? CONFIG.mobile.flocks : NUM_FLOCKS;
-  const boidsPerFlock = device.small ? CONFIG.mobile.boidsPerFlock : BOIDS_PER_FLOCK;
+  const totalBoids = device.small
+    ? CONFIG.mobile.flocks * CONFIG.mobile.boidsPerFlock
+    : constrain(round(width * height / P.areaPerBoid), P.defaultMin, P.defaultMax);
 
   // Pastelové, jemné odstíny pro jednotlivá hejna ([r,g,b])
   const palette = [
@@ -976,6 +1029,8 @@ function initSimulation() {
     // každé hejno startuje z jiné oblasti obrazovky
     let cx = random(width * 0.2, width * 0.8);
     let cy = random(height * 0.2, height * 0.8);
+    // rovnoměrné rozdělení celkového počtu mezi hejna (zbytek od začátku)
+    const boidsPerFlock = floor(totalBoids / numFlocks) + (i < totalBoids % numFlocks ? 1 : 0);
     for (let j = 0; j < boidsPerFlock; j++) {
       let b = new Boid(cx + random(-60, 60), cy + random(-60, 60), i);
       b.flockColor = col;      // základní barva pro míchání s barvou obrazce
@@ -1084,6 +1139,10 @@ const UI_ACTIONS = [
     act: () => { CONFIG.road.width = max(CONFIG.road.widthMin, CONFIG.road.width - CONFIG.road.step); } },
   { id: 'roadPlus', label: () => 'šíře +',
     act: () => { CONFIG.road.width = min(CONFIG.road.widthMax, CONFIG.road.width + CONFIG.road.step); } },
+  { id: 'boidsMinus', label: () => 'boidi −',
+    act: () => changeBoidCount(-CONFIG.population.step) },
+  { id: 'boidsPlus', label: () => 'boidi +',
+    act: () => changeBoidCount(CONFIG.population.step) },
   { id: 'edges', label: () => CONFIG.edges.wrap ? 'okraje ⇄' : 'okraje ▣',
     act: () => { CONFIG.edges.wrap = !CONFIG.edges.wrap; } },
   { id: 'reset', label: () => 'reset',
@@ -1153,12 +1212,14 @@ function drawHud() {
   let trailInfo = CONFIG.trailsEnabled ? 'traily: ZAP (délka ' + lenPct + '%)' : 'traily: VYP';
   let edgeInfo = CONFIG.edges.wrap ? 'okraje: průchozí' : 'okraje: uzavřené';
   if (device.touch) {
-    text(trailInfo + '    silnice: ' + round(CONFIG.road.width) + ' px    ' + edgeInfo, 16, 34);
+    text(trailInfo + '    silnice: ' + round(CONFIG.road.width) + ' px    boidi: '
+      + allBoids.length + '    ' + edgeInfo, 16, 34);
   } else {
     text('mezerník: další obrazec    klik: atraktor    r: reset', 16, 34);
     text(trailInfo + '    t: zap/vyp    +/-: délka', 16, 50);
     text('silnice: ' + round(CONFIG.road.width) + ' px    ,/. : užší/širší', 16, 66);
-    text(edgeInfo + '    w: přepnout', 16, 82);
+    text('boidi: ' + allBoids.length + '    b/n: míň/víc', 16, 82);
+    text(edgeInfo + '    w: přepnout', 16, 98);
   }
   pop();
 }
@@ -1192,6 +1253,12 @@ function keyPressed() {
   } else if (key === 'w' || key === 'W') {
     // přepni průchozí okraje (wrap) / uzavřené (drží se uvnitř)
     CONFIG.edges.wrap = !CONFIG.edges.wrap;
+  } else if (key === 'b' || key === 'B') {
+    // míň boidů
+    changeBoidCount(-CONFIG.population.step);
+  } else if (key === 'n' || key === 'N') {
+    // víc boidů
+    changeBoidCount(CONFIG.population.step);
   }
 }
 

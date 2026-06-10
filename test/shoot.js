@@ -50,7 +50,14 @@ async function runProfile(browser, name, ctxOpts, checks) {
       if (s.small) f.push("desktop nemá být small");
       if (s.shapes.length !== 11) f.push("čekal jsem 11 tvarů, je " + s.shapes.length);
       if (s.road !== 40) f.push("šířka silnice má být 40, je " + s.road);
-      if (s.buttons !== 8) f.push("čekal jsem 8 tlačítek, je " + s.buttons);
+      if (s.buttons !== 10) f.push("čekal jsem 10 tlačítek, je " + s.buttons);
+      // výchozí počet boidů podle plochy okna (1280×800 / 9000 ≈ 114)
+      if (s.boids < 100 || s.boids > 280) f.push("počet boidů mimo rozsah: " + s.boids);
+      // klik na „boidi +" přidá krok (10)
+      const bplus = await page.evaluate(() => uiButtons.find(b => b.id === "boidsPlus"));
+      await page.mouse.click(bplus.x + bplus.w / 2, bplus.y + bplus.h / 2);
+      const after = await page.evaluate(() => allBoids.length);
+      if (after !== s.boids + 10) f.push(`boidi + nepřidal 10 (${s.boids} -> ${after})`);
       // klik na tlačítko „tvar" přepne stav na GATHER_TO_SHAPE
       const btn = await page.evaluate(() => uiButtons.find(b => b.id === "shape"));
       await page.mouse.click(btn.x + btn.w / 2, btn.y + btn.h / 2);
@@ -80,6 +87,7 @@ async function runProfile(browser, name, ctxOpts, checks) {
       if (!s.shapes.includes("kvitek")) f.push("chybí mobilní kvítek");
       if (s.road !== 20) f.push("šířka silnice má být 20, je " + s.road);
       if (s.boids !== 3 * 28) f.push("čekal jsem 84 boidů, je " + s.boids);
+      if (s.buttons !== 10) f.push("čekal jsem 10 tlačítek, je " + s.buttons);
       // tap na tlačítko „tvar"
       const btn = await page.evaluate(() => uiButtons.find(b => b.id === "shape"));
       await page.touchscreen.tap(btn.x + btn.w / 2, btn.y + btn.h / 2);

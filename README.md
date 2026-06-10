@@ -28,9 +28,13 @@ p5.js se načítá z CDN, takže žádná instalace ani build nejsou potřeba.
 ## Ovládání
 
 Dole na obrazovce je **panel tlačítek** (tvar, traily, délka stopy, šířka
-silnice, okraje, reset) — funguje myší i prstem, na dotykových zařízeních
-nahrazuje klávesnici. Klik/tap kamkoli jinam vytvoří jemný **atraktor**;
-tažením prstu/myši se atraktor přesouvá a boidi plynou za ním.
+silnice, počet boidů, okraje, reset) — funguje myší i prstem, na dotykových
+zařízeních nahrazuje klávesnici. Klik/tap kamkoli jinam vytvoří jemný
+**atraktor**; tažením prstu/myši se atraktor přesouvá a boidi plynou za ním.
+
+Výchozí **počet boidů** se na desktopu odvozuje z plochy okna (velký monitor
+dostane víc), tlačítky `boidi −/+` nebo klávesami `b`/`n` ho jde měnit po
+desítkách. Noví boidi se líhnou poblíž svých hejn, ubírá se z konce.
 
 Klávesové zkratky (desktop):
 
@@ -42,6 +46,7 @@ Klávesové zkratky (desktop):
 | `t` | traily (stopy) zapnout / vypnout |
 | `+` / `-` | prodloužit / zkrátit traily (i `=`, `[`, `]`) |
 | `,` / `.` | užší / širší „silnice" obrazce |
+| `b` / `n` | míň / víc boidů (po 10) |
 | `w` | okraje: průchozí (proletí na druhou stranu) ↔ uzavřené (drží se uvnitř) |
 
 Stav simulace a nastavení se zobrazují v levém horním rohu.

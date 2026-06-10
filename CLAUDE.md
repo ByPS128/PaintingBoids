@@ -185,6 +185,12 @@ otestovat: `WRAP=0 node observe.js` (hlásí max přesah mimo plátno, má být 
 - **Všechno laditelné je v `CONFIG`** (nahoře) + sadě konstant `NUM_FLOCKS`,
   `BOIDS_PER_FLOCK`, `PERCEPTION`, `SEPARATION_RADIUS`, váhy `W_*`,
   `OTHER_FLOCK_FACTOR`. Měň primárně tam.
+- **Počet boidů**: výchozí na desktopu podle plochy okna
+  (`CONFIG.population.areaPerBoid`, clamp `defaultMin..defaultMax`), na
+  mobilu z `CONFIG.mobile`. Za běhu tlačítka `boidi −/+` / klávesy `b`/`n`
+  → `changeBoidCount()` (krok `population.step`, meze `min`/`max`); noví se
+  líhnou poblíž náhodného boida svého hejna (`addBoids`), ubírá se z konce
+  (`removeBoids`). Flocking je O(n²) — `population.max` drž rozumné.
 - Vizuál: tmavé pozadí, pastelové barvy hejn (paleta v `initSimulation`),
   svítící trojúhelníčky kreslené **aditivně** (`blendMode(ADD)`), traily přes
   průhledný overlay (při vypnutí plné překreslení).
