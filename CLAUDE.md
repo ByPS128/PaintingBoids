@@ -16,10 +16,20 @@ a pak se zase rozletí. Žádný build, žádný framework — čistý JS + p5.j
   ```
   python -m http.server 8000   # pak http://localhost:8000
   ```
-- **Kontrola syntaxe** (jediný „test", který tu je):
+- **Živá stránka:** https://byps128.github.io/PaintingBoids/ (GitHub Pages
+  z větve `master`, `.nojekyll`; po pushi se sama přebuildí do ~1 min).
+- **Kontrola syntaxe:**
   ```
   node --check sketch.js
   ```
+- **Smoke test (Playwright + systémový Chrome):**
+  ```
+  node test/shoot.js
+  ```
+  Dva profily: desktop (myš, plná sada tvarů, klik na tlačítko) a mobil
+  (390×844, dotyk → kompaktní sada, užší silnice, méně boidů, tap na tlačítko
+  i atraktor). Ukládá `test/desktop.png` a `test/mobile.png`. Playwright se
+  bere ze sesterského `CPU-MOS-6502C-Sally-Visual-Simulator/node_modules`.
 - Žádný build/lint/test toolchain. p5.js verze je připnutá v `index.html`
   (`p5@1.9.4` z jsDelivr).
 
@@ -137,9 +147,27 @@ Přidání schématu: položka do `COLOR_SCHEMES` + odkaz jménem u tvaru.
 
 ## Ovládání
 
-`mezerník` další tvar · klik myši = jemný atraktor · `r` reset · `t` traily
-zap/vyp · `+`/`-` (i `=`,`[`,`]`) délka trailů · `,`/`.` šířka silnice ·
-`w` okraje průchozí/uzavřené. HUD vlevo nahoře ukazuje stav.
+`mezerník` další tvar · klik myši = jemný atraktor (drag = atraktor plyne
+za kurzorem/prstem) · `r` reset · `t` traily zap/vyp · `+`/`-` (i `=`,`[`,`]`)
+délka trailů · `,`/`.` šířka silnice · `w` okraje průchozí/uzavřené.
+HUD vlevo nahoře ukazuje stav.
+
+**UI panel (dole)**: kreslená tlačítka pro všechny akce (`UI_ACTIONS` +
+`drawUiPanel`, hitboxy v `uiButtons` vč. `id`) — myš i prst, zalamuje se do
+řádků na úzkém displeji. V `mousePressed` mají tlačítka přednost před
+atraktorem; handlery vracejí `false` (+ `touch-action: none` v CSS), aby tah
+prstem neroloval stránku.
+
+## Mobil / detekce zařízení
+
+`detectDevice()` → `device = {touch, small}` (nezávislé vlastnosti: hrubý
+ukazatel/touch body vs. menší strana okna < `CONFIG.mobile.smallSide`).
+Na `small`: užší výchozí silnice (`applyDeviceTuning`), méně hejn/boidů,
+větší `shapeScale` a **kompaktní sada tvarů** — `buildShapes(compact)`:
+bez vlny/lissajous/šestiúhelníku, kopretina→kvítek (5 lístků), spirála jen
+2 otočky s větším startem. Na `touch`: větší tlačítka, HUD bez klávesových
+nápověd. Resize přes hranici `smallSide` => `applyDeviceTuning` +
+`initSimulation` (re-init je tu záměrný).
 
 Okraje (`CONFIG.edges`): `wrap=true` proletí ven a objeví se na druhé straně;
 `wrap=false` boidi se drží uvnitř — `Boid.applyEdges()` je od kraje (margin)

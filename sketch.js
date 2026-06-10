@@ -71,10 +71,33 @@ const CONFIG = {
   // Vodící čára vede středem, každý boid má vlastní příčný offset v rozsahu
   // +-width/2. width=0 => přesně po čáře. Klávesy "," a "." (úzká/široká).
   road: {
-    width: 40,           // šířka silnice v px (0 = přesně po čáře)
+    width: 40,           // aktuální šířka silnice v px (0 = přesně po čáře)
+    widthDesktop: 40,    // výchozí šířka na velké obrazovce
     widthMin: 0,
     widthMax: 260,
     step: 15
+  },
+
+  // MOBIL / MALÁ OBRAZOVKA: na malém displeji se tvary s velkým rozptylem
+  // slévají (kopretina, vlna...), proto užší silnice, méně boidů, mírně
+  // větší tvary a vlastní (čitelnější) sada obrazců - viz buildShapes.
+  mobile: {
+    smallSide: 700,      // menší strana okna pod tuhle mez => "malá obrazovka"
+    roadWidth: 20,       // výchozí šířka silnice na malé obrazovce
+    flocks: 3,           // méně hejn (výkon + čitelnost)
+    boidsPerFlock: 28,   // méně boidů v hejnu
+    shapeScaleFactor: 0.38, // tvary o kus větší vůči plátnu (desktop má 0.34)
+  },
+
+  // UI PANEL: kreslená tlačítka dole (ovládání prstem/myší - na dotykových
+  // zařízeních nahrazuje klávesnici, na desktopu doplňuje).
+  ui: {
+    fontSize: 13,        // písmo tlačítek
+    padX: 13,            // vnitřní odsazení tlačítka
+    gap: 8,              // mezera mezi tlačítky
+    heightTouch: 42,     // výška tlačítka na dotykovém zařízení (prst)
+    heightMouse: 30,     // výška tlačítka pro myš
+    marginBottom: 12,    // odsazení panelu od spodního okraje
   }
 };
 
@@ -97,6 +120,25 @@ const OTHER_FLOCK_FACTOR = 0.25;
 let flocks = [];        // pole instancí Flock
 let allBoids = [];      // všichni boidi (pro flocking dohromady)
 let controller;         // SimulationController
+let device = { touch: false, small: false }; // detekce zařízení (viz detectDevice)
+let uiButtons = [];     // hitboxy kreslených tlačítek (plní drawUiPanel)
+
+// Detekce zařízení: "touch" = ovládá se prstem (hrubý ukazatel / touch body),
+// "small" = malá obrazovka (mobil) - dvě nezávislé vlastnosti. Tablet s velkým
+// displejem dostane dotykové UI, ale plnou sadu tvarů.
+function detectDevice() {
+  const touch = (navigator.maxTouchPoints || 0) > 0 ||
+    (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  const small = min(windowWidth, windowHeight) < CONFIG.mobile.smallSide;
+  return { touch, small };
+}
+
+// Aplikuj ladění podle třídy zařízení (výchozí šířka silnice). Volá se při
+// startu a když se třída změní resizem - úmyslně přepíše ruční nastavení,
+// protože výchozí hodnota pro novou velikost je lepší startovní bod.
+function applyDeviceTuning() {
+  CONFIG.road.width = device.small ? CONFIG.mobile.roadWidth : CONFIG.road.widthDesktop;
+}
 
 // =============================================================
 // Barevná schémata obrazců
@@ -199,7 +241,8 @@ function shapeCenter() {
   return createVector(width / 2, height / 2);
 }
 function shapeScale() {
-  return min(width, height) * 0.34;
+  // na malé obrazovce tvary mírně větší, ať vyplní displej
+  return min(width, height) * (device.small ? CONFIG.mobile.shapeScaleFactor : 0.34);
 }
 
 // ---- Pomůcky pro mnohoúhelníky a hvězdy se zaoblenými rohy ----
@@ -277,10 +320,15 @@ function roundedPolyShape(name, makeVerts, roundIters = 3, schemeName = 'hejna')
 
 // ---- Definice konkrétních obrazců ---------------------------
 
-function buildShapes() {
+// compact=true (malá obrazovka): jen tvary, které jsou čitelné i v malém -
+// jemně zvlněné křivky s mnoha lístky/otočkami (kopretina, spirála se 3
+// otočkami, vlna přes celou šířku, proplétaný lissajous) se na mobilu slévají
+// a nejde poznat, co boidi kreslí. Místo nich jednodušší varianty (kvítek
+// s 5 lístky, spirála se 2 otočkami).
+function buildShapes(compact = false) {
   const shapes = [];
 
-  // Srdce - klasická parametrická rovnice
+  // Srdce - klasická parametrická rovnice (čitelné všude)
   shapes.push(new ShapePath('srdce', (t) => {
     let a = t * TWO_PI;
     let x = 16 * pow(sin(a), 3);
@@ -291,10 +339,11 @@ function buildShapes() {
     return createVector(c.x + x * s, c.y - y * s);
   }, 'cervena'));
 
-  // Kopretina - rose / flower curve (střed + okvětní lístky)
-  shapes.push(new ShapePath('kopretina', (t) => {
+  // Kopretina / kvítek - rose curve; na mobilu jen 5 výraznějších lístků,
+  // na desktopu plných 8
+  const petals = compact ? 5 : 8;
+  shapes.push(new ShapePath(compact ? 'kvitek' : 'kopretina', (t) => {
     let a = t * TWO_PI;
-    let petals = 8;
     let r = 0.55 + 0.45 * cos(petals * a); // zvlněný obrys do lístků
     let c = shapeCenter();
     let s = shapeScale();
@@ -309,23 +358,27 @@ function buildShapes() {
     return createVector(c.x + cos(a) * s, c.y + sin(a) * s);
   }, 'ocean'));
 
-  // Spirála - 3 otočky, poloměr roste s t
+  // Spirála - na mobilu jen 2 otočky s větším začátkem (3 otočky se slévají)
+  const turns = compact ? 2 : 3;
+  const spiralStart = compact ? 0.2 : 0.08;
   shapes.push(new ShapePath('spirala', (t) => {
-    let turns = 3;
     let a = t * turns * TWO_PI;
-    let r = lerp(0.08, 1.0, t) * shapeScale();
+    let r = lerp(spiralStart, 1.0, t) * shapeScale();
     let c = shapeCenter();
     return createVector(c.x + cos(a) * r, c.y + sin(a) * r);
   }, 'duha'));
 
-  // Vlna - horizontální sinusovka přes obrazovku
-  shapes.push(new ShapePath('vlna', (t) => {
-    let waves = 2.5;
-    let margin = width * 0.12;
-    let x = lerp(margin, width - margin, t);
-    let y = height / 2 + sin(t * waves * TWO_PI) * shapeScale() * 0.55;
-    return createVector(x, y);
-  }, 'ocean'));
+  // Vlna - horizontální sinusovka přes obrazovku (jen desktop; na výšku
+  // drženém mobilu je moc krátká a plochá)
+  if (!compact) {
+    shapes.push(new ShapePath('vlna', (t) => {
+      let waves = 2.5;
+      let margin = width * 0.12;
+      let x = lerp(margin, width - margin, t);
+      let y = height / 2 + sin(t * waves * TWO_PI) * shapeScale() * 0.55;
+      return createVector(x, y);
+    }, 'ocean'));
+  }
 
   // Hvězda - 5 cípů, rohy zaoblené (aby je boidi proletěli)
   shapes.push(roundedPolyShape('hvezda', () => starVerts(5, 1.05, 0.45), 3, 'zlata'));
@@ -333,8 +386,10 @@ function buildShapes() {
   // Trojúhelník - se zaoblenými rohy
   shapes.push(roundedPolyShape('trojuhelnik', () => regularPolygonVerts(3, 1.05), 3, 'duha'));
 
-  // Šestiúhelník - se zaoblenými rohy
-  shapes.push(roundedPolyShape('sestiuhelnik', () => regularPolygonVerts(6, 1.0), 2, 'neon'));
+  // Šestiúhelník - se zaoblenými rohy (jen desktop, v malém splývá s kruhem)
+  if (!compact) {
+    shapes.push(roundedPolyShape('sestiuhelnik', () => regularPolygonVerts(6, 1.0), 2, 'neon'));
+  }
 
   // Nekonečno - ležatá osmička (lemniskáta), hladká
   shapes.push(new ShapePath('nekonecno', (t) => {
@@ -353,13 +408,16 @@ function buildShapes() {
     return createVector(c.x + cos(a) * r, c.y + sin(a) * r);
   }, 'zelena'));
 
-  // Lissajous - jemně proplétaná hladká smyčka (3:2)
-  shapes.push(new ShapePath('lissajous', (t) => {
-    let a = t * TWO_PI;
-    let s = shapeScale();
-    let c = shapeCenter();
-    return createVector(c.x + cos(3 * a) * s, c.y + sin(2 * a) * s);
-  }, 'oscilace'));
+  // Lissajous - jemně proplétaná hladká smyčka 3:2 (jen desktop, v malém
+  // z ní je nečitelné klubko)
+  if (!compact) {
+    shapes.push(new ShapePath('lissajous', (t) => {
+      let a = t * TWO_PI;
+      let s = shapeScale();
+      let c = shapeCenter();
+      return createVector(c.x + cos(3 * a) * s, c.y + sin(2 * a) * s);
+    }, 'oscilace'));
+  }
 
   return shapes;
 }
@@ -884,6 +942,8 @@ let lastTime = 0;
 function setup() {
   createCanvas(windowWidth, windowHeight);
   colorMode(RGB, 255);
+  device = detectDevice();
+  applyDeviceTuning();
   initSimulation();
   lastTime = millis();
 }
@@ -891,6 +951,10 @@ function setup() {
 function initSimulation() {
   flocks = [];
   allBoids = [];
+
+  // na malé obrazovce méně hejn i boidů (výkon + čitelnost tvarů)
+  const numFlocks = device.small ? CONFIG.mobile.flocks : NUM_FLOCKS;
+  const boidsPerFlock = device.small ? CONFIG.mobile.boidsPerFlock : BOIDS_PER_FLOCK;
 
   // Pastelové, jemné odstíny pro jednotlivá hejna ([r,g,b])
   const palette = [
@@ -900,13 +964,13 @@ function initSimulation() {
     [245, 215, 200]  // pudrově broskvová
   ];
 
-  for (let i = 0; i < NUM_FLOCKS; i++) {
+  for (let i = 0; i < numFlocks; i++) {
     let col = palette[i % palette.length];
     let flock = new Flock(i, col);
     // každé hejno startuje z jiné oblasti obrazovky
     let cx = random(width * 0.2, width * 0.8);
     let cy = random(height * 0.2, height * 0.8);
-    for (let j = 0; j < BOIDS_PER_FLOCK; j++) {
+    for (let j = 0; j < boidsPerFlock; j++) {
       let b = new Boid(cx + random(-60, 60), cy + random(-60, 60), i);
       b.flockColor = col;      // základní barva pro míchání s barvou obrazce
       flock.addBoid(b);
@@ -915,7 +979,7 @@ function initSimulation() {
     flocks.push(flock);
   }
 
-  controller = new SimulationController(buildShapes());
+  controller = new SimulationController(buildShapes(device.small));
 }
 
 function draw() {
@@ -968,6 +1032,7 @@ function draw() {
   pop();
 
   drawHud();
+  drawUiPanel();
 }
 
 // Velmi jemný "duch" obrysu obrazce (vodící čára uprostřed silnice) -
@@ -991,6 +1056,76 @@ function drawShapeGhost(shapeWeight) {
   pop();
 }
 
+// =============================================================
+// UI panel - kreslená tlačítka dole (prst i myš)
+// Na dotykových zařízeních nahrazuje klávesnici, na desktopu doplňuje.
+// Štítky se počítají za běhu (ukazují stav), hitboxy se ukládají do
+// uiButtons a vyhodnocují v mousePressed (tlačítko má přednost před
+// atraktorem).
+// =============================================================
+const UI_ACTIONS = [
+  { id: 'shape', label: () => '▸ tvar',
+    act: () => controller.nextShape() },
+  { id: 'trails', label: () => CONFIG.trailsEnabled ? 'traily ✓' : 'traily ✗',
+    act: () => { CONFIG.trailsEnabled = !CONFIG.trailsEnabled; } },
+  { id: 'trailMinus', label: () => 'stopa −',
+    act: () => { CONFIG.trailsEnabled = true;
+      CONFIG.trailFade = min(CONFIG.trailFadeMax, CONFIG.trailFade + 12); } },
+  { id: 'trailPlus', label: () => 'stopa +',
+    act: () => { CONFIG.trailsEnabled = true;
+      CONFIG.trailFade = max(CONFIG.trailFadeMin, CONFIG.trailFade - 12); } },
+  { id: 'roadMinus', label: () => 'šíře −',
+    act: () => { CONFIG.road.width = max(CONFIG.road.widthMin, CONFIG.road.width - CONFIG.road.step); } },
+  { id: 'roadPlus', label: () => 'šíře +',
+    act: () => { CONFIG.road.width = min(CONFIG.road.widthMax, CONFIG.road.width + CONFIG.road.step); } },
+  { id: 'edges', label: () => CONFIG.edges.wrap ? 'okraje ⇄' : 'okraje ▣',
+    act: () => { CONFIG.edges.wrap = !CONFIG.edges.wrap; } },
+  { id: 'reset', label: () => 'reset',
+    act: () => { initSimulation(); lastTime = millis(); } },
+];
+
+function drawUiPanel() {
+  const U = CONFIG.ui;
+  const btnH = device.touch ? U.heightTouch : U.heightMouse;
+
+  push();
+  blendMode(BLEND);
+  textSize(U.fontSize);
+  textAlign(CENTER, CENTER);
+
+  // šířky tlačítek podle textu, zalamování do řádků (úzké displeje)
+  const widths = UI_ACTIONS.map(a => textWidth(a.label()) + 2 * U.padX);
+  const maxRowW = width - 16;
+  const rows = [[]];
+  let rowW = 0;
+  UI_ACTIONS.forEach((a, i) => {
+    const w = widths[i];
+    if (rowW > 0 && rowW + U.gap + w > maxRowW) { rows.push([]); rowW = 0; }
+    rows[rows.length - 1].push({ a, w });
+    rowW += (rowW > 0 ? U.gap : 0) + w;
+  });
+
+  // vykreslení odspodu nahoru, každý řádek vycentrovaný
+  uiButtons = [];
+  let y = height - U.marginBottom - btnH;
+  for (let r = rows.length - 1; r >= 0; r--) {
+    const row = rows[r];
+    const totalW = row.reduce((s, b) => s + b.w, 0) + U.gap * (row.length - 1);
+    let x = (width - totalW) / 2;
+    for (const { a, w } of row) {
+      noStroke();
+      fill(30, 40, 60, 170);
+      rect(x, y, w, btnH, btnH / 2);
+      fill(190, 205, 230, 220);
+      text(a.label(), x + w / 2, y + btnH / 2 - 1);
+      uiButtons.push({ id: a.id, x, y, w, h: btnH, act: a.act });
+      x += w + U.gap;
+    }
+    y -= btnH + U.gap;
+  }
+  pop();
+}
+
 // Decentní informační text
 function drawHud() {
   push();
@@ -1002,28 +1137,23 @@ function drawHud() {
   let label = controller.state + '  -  ' + controller.currentShape.name +
     '  [' + controller.currentShape.schemeName + ']';
   text(label, 16, 14);
+
+  // Klávesové nápovědy jen tam, kde je klávesnice (na dotyku je nahrazuje
+  // panel tlačítek dole); stavové hodnoty se hodí všude.
   fill(150, 170, 200, 80);
   textSize(11);
-  text('mezerník: další obrazec    klik: atraktor    r: reset', 16, 34);
-
-  // Stav trailů
-  let trailInfo;
-  if (!CONFIG.trailsEnabled) {
-    trailInfo = 'traily: VYP';
-  } else {
-    // přepočet alpha na intuitivní "délku" (vyšší alpha = kratší stopa)
-    let lenPct = round(map(CONFIG.trailFade,
-      CONFIG.trailFadeMin, CONFIG.trailFadeMax, 100, 0));
-    trailInfo = 'traily: ZAP (délka ' + lenPct + '%)';
-  }
-  text(trailInfo + '    t: zap/vyp    +/-: délka', 16, 50);
-
-  // Šířka silnice obrazce
-  text('silnice: ' + round(CONFIG.road.width) + ' px    ,/. : užší/širší', 16, 66);
-
-  // Stav okrajů
+  let lenPct = round(map(CONFIG.trailFade,
+    CONFIG.trailFadeMin, CONFIG.trailFadeMax, 100, 0));
+  let trailInfo = CONFIG.trailsEnabled ? 'traily: ZAP (délka ' + lenPct + '%)' : 'traily: VYP';
   let edgeInfo = CONFIG.edges.wrap ? 'okraje: průchozí' : 'okraje: uzavřené';
-  text(edgeInfo + '    w: přepnout', 16, 82);
+  if (device.touch) {
+    text(trailInfo + '    silnice: ' + round(CONFIG.road.width) + ' px    ' + edgeInfo, 16, 34);
+  } else {
+    text('mezerník: další obrazec    klik: atraktor    r: reset', 16, 34);
+    text(trailInfo + '    t: zap/vyp    +/-: délka', 16, 50);
+    text('silnice: ' + round(CONFIG.road.width) + ' px    ,/. : užší/širší', 16, 66);
+    text(edgeInfo + '    w: přepnout', 16, 82);
+  }
   pop();
 }
 
@@ -1060,11 +1190,37 @@ function keyPressed() {
 }
 
 function mousePressed() {
+  // tlačítka panelu mají přednost (tap na tlačítko nesmí spustit atraktor)
+  for (const b of uiButtons) {
+    if (mouseX >= b.x && mouseX <= b.x + b.w && mouseY >= b.y && mouseY <= b.y + b.h) {
+      b.act();
+      return false; // na dotyku potlačí i syntetický scroll/zoom
+    }
+  }
   // jemný atraktor, který boidy na chvíli přitáhne
   controller.attractor = createVector(mouseX, mouseY);
   controller.attractorStrength = 1.0;
+  return false;
+}
+
+// Tažení prstem/myší: atraktor plyne za prstem (na mobilu hlavní hračka)
+function mouseDragged() {
+  if (controller.attractor) {
+    controller.attractor.set(mouseX, mouseY);
+    controller.attractorStrength = 1.0;
+  }
+  return false; // ať tažení po plátně neroluje stránku
 }
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
+  // při překlopení třídy zařízení (velká <-> malá obrazovka) se přepne
+  // výchozí šířka silnice, sada tvarů i počty boidů (vyžaduje re-init)
+  const before = device.small;
+  device = detectDevice();
+  if (device.small !== before) {
+    applyDeviceTuning();
+    initSimulation();
+    lastTime = millis();
+  }
 }

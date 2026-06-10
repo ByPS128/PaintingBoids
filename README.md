@@ -27,6 +27,13 @@ p5.js se načítá z CDN, takže žádná instalace ani build nejsou potřeba.
 
 ## Ovládání
 
+Dole na obrazovce je **panel tlačítek** (tvar, traily, délka stopy, šířka
+silnice, okraje, reset) — funguje myší i prstem, na dotykových zařízeních
+nahrazuje klávesnici. Klik/tap kamkoli jinam vytvoří jemný **atraktor**;
+tažením prstu/myši se atraktor přesouvá a boidi plynou za ním.
+
+Klávesové zkratky (desktop):
+
 | Klávesa / akce | Co dělá |
 |---|---|
 | `mezerník` | ručně přepne na další obrazec |
@@ -39,10 +46,20 @@ p5.js se načítá z CDN, takže žádná instalace ani build nejsou potřeba.
 
 Stav simulace a nastavení se zobrazují v levém horním rohu.
 
+## Mobil
+
+Aplikace detekuje malou obrazovku a dotykové ovládání a přizpůsobí se:
+užší výchozí „silnice" (tvary se na malém displeji neslévají), o něco větší
+obrazce, méně boidů (výkon) a **vlastní sada obrazců** čitelných v malém —
+místo osmilisté kopretiny pětilistý kvítek, spirála jen se dvěma otočkami;
+vlna, šestiúhelník a lissajous se na mobilu nenabízejí.
+
 ## Obrazce
 
 Srdce · kopretina · kruh · spirála · vlna · hvězda · trojúhelník · šestiúhelník ·
 nekonečno (∞) · trojlístek · lissajous.
+(Na malé obrazovce kompaktní sada: srdce · kvítek · kruh · spirála · hvězda ·
+trojúhelník · nekonečno · trojlístek.)
 
 Mnohoúhelníky a hvězda mají **zaoblené rohy**, aby jimi boidi dokázali za letu
 proletět.

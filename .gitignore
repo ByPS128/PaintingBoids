@@ -1,0 +1,5 @@
+# vygenerované screenshoty ze smoke testu
+test/*.png
+
+# případné lokální závislosti
+node_modules/

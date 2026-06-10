@@ -11,8 +11,11 @@
       padding: 0;
       background: #060810;
       overflow: hidden;
+      /* tažení prstem po plátně ovládá atraktor, nesmí rolovat/zoomovat */
+      touch-action: none;
+      overscroll-behavior: none;
     }
-    canvas { display: block; }
+    canvas { display: block; touch-action: none; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/p5@1.9.4/lib/p5.min.js"></script>
 </head>
