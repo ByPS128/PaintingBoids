@@ -1,5 +1,8 @@
 # Painting Boids
 
+**▶ Živá ukázka: <https://byps128.github.io/PaintingBoids/>** — běží přímo
+v prohlížeči, nic se neinstaluje.
+
 Mírumilovná, poetická **boids** vizualizace v [p5.js](https://p5js.org/).
 
 Hejna světelných bytostí volně létají po obrazovce. Občas jim je „vnuknuta
