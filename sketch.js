@@ -126,10 +126,16 @@ let uiButtons = [];     // hitboxy kreslených tlačítek (plní drawUiPanel)
 // Detekce zařízení: "touch" = ovládá se prstem (hrubý ukazatel / touch body),
 // "small" = malá obrazovka (mobil) - dvě nezávislé vlastnosti. Tablet s velkým
 // displejem dostane dotykové UI, ale plnou sadu tvarů.
+// Pojistky pro telefony, kde selže primární detekce (např. režim "Web pro
+// počítače" hlásí jemný ukazatel a layout viewport ~980 px):
+//  - UA telefonu (Mobi/iPhone) vynutí touch i small,
+//  - první SKUTEČNÝ dotyk přepne touch za běhu (viz touchStarted).
 function detectDevice() {
+  const phoneUA = /Mobi|iPhone|iPod/i.test(navigator.userAgent || '');
   const touch = (navigator.maxTouchPoints || 0) > 0 ||
-    (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-  const small = min(windowWidth, windowHeight) < CONFIG.mobile.smallSide;
+    (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+    phoneUA;
+  const small = min(windowWidth, windowHeight) < CONFIG.mobile.smallSide || phoneUA;
   return { touch, small };
 }
 
@@ -1210,6 +1216,18 @@ function mouseDragged() {
     controller.attractorStrength = 1.0;
   }
   return false; // ať tažení po plátně neroluje stránku
+}
+
+// Dotykové události: skutečný dotyk je definitivní důkaz dotykového zařízení
+// - kdyby primární detekce selhala, přepne se UI za běhu. p5 při definovaném
+// touchStarted už mousePressed samo nevolá, proto ho voláme ručně.
+function touchStarted() {
+  if (!device.touch) device.touch = true;
+  return mousePressed();
+}
+
+function touchMoved() {
+  return mouseDragged();
 }
 
 function windowResized() {

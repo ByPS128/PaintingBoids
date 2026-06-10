@@ -162,6 +162,11 @@ prstem neroloval stránku.
 
 `detectDevice()` → `device = {touch, small}` (nezávislé vlastnosti: hrubý
 ukazatel/touch body vs. menší strana okna < `CONFIG.mobile.smallSide`).
+Pojistky: UA telefonu (`Mobi|iPhone`) vynutí obojí (režim „Web pro počítače"
+hlásí jemný ukazatel a ~980px viewport); první REÁLNÝ dotyk přepne `touch`
+za běhu (`touchStarted` — pozn.: když je definovaný, p5 už mousePressed
+nevolá, proto ho volá ručně). `index.html` načítá `sketch.js?v=N` kvůli
+tvrdé cache mobilních prohlížečů — při změně sketche zvyš N.
 Na `small`: užší výchozí silnice (`applyDeviceTuning`), méně hejn/boidů,
 větší `shapeScale` a **kompaktní sada tvarů** — `buildShapes(compact)`:
 bez vlny/lissajous/šestiúhelníku, kopretina→kvítek (5 lístků), spirála jen
