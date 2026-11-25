@@ -199,7 +199,7 @@ otestovat: `WRAP=0 node observe.js` (hlásí max přesah mimo plátno, má být 
 
 ## Kontext / preference autora (paměť)
 
-- Autor je česky mluvící; preferuje čistý, srozumitelný JS, žádný TypeScript,
+- Autor preferuje čistý, srozumitelný JS, žádný TypeScript,
   žádné zbytečné frameworky, vše v jednom `sketch.js`.
 - Estetika: klidná, živá, hypnotická — NE agresivní barvy ani „bojový" styl.
   Boidi musí pořád působit jako živé letící bytosti, ne statické body/drony.
@@ -209,11 +209,6 @@ otestovat: `WRAP=0 node observe.js` (hlásí max přesah mimo plátno, má být 
   Když děláš změny, míř
   na organický, plynulý, lehce nepřesný pohyb.
 
-## Další směr (cíl projektu)
+## Další směr
 
-- **Cíl:** dotáhnout z hotového prototypu do prezentovatelného „produktu", který
-  jde ukázat ostatním (work na to plánovaný cca červen 2026 a dál).
-- Možné kroky k produktu (nápady do příště): hezčí/uklizenější UI místo textového
-  HUDu (panel s ovládáním, on/off přepínače), úvodní obrazovka / název, mobilní
-  ovládání (touch), volba palet a tvarů, plynulé přechody scén, sdílení/odkaz,
-  případně nasazení (GitHub Pages). Repo zatím nemá git remote.
+Cíl a nápady na další rozvoj: [`docs/napady.md`](docs/napady.md).
